@@ -164,37 +164,43 @@ end~FI
 
   Clock domA ->                   ~ARG[6]
   Signal domA Bool ->             ~ARG[7]
-  Signal domA (Index nAddrs) ->   ~ARG[8]
-  Signal domA a ->                ~ARG[9]
+  Signal domA Bool ->             ~ARG[8]
+  Signal domA (Index nAddrs) ->   ~ARG[9]
+  Signal domA a ->                ~ARG[10]
 
-  Clock domB ->                   ~ARG[10]
-  Signal domB Bool ->             ~ARG[11]
-  Signal domB (Index nAddrs) ->   ~ARG[12]
-  Signal domB a ->                ~ARG[13]
+  Clock domB ->                   ~ARG[11]
+  Signal domB Bool ->             ~ARG[12]
+  Signal domB Bool ->             ~ARG[13]
+  Signal domB (Index nAddrs) ->   ~ARG[14]
+  Signal domB a ->                ~ARG[15]
   (Signal domA a, Signal domB a)"
     , "template" :
 "// trueDualPortBlockRam begin
 // Shared memory
-reg [~SIZE[~TYP[9]]-1:0] ~GENSYM[mem][0] [~LIT[1]-1:0];
+reg [~SIZE[~TYP[10]]-1:0] ~GENSYM[mem][0] [~LIT[1]-1:0];
 
-reg ~SIGD[~GENSYM[data_slow][1]][9];
-reg ~SIGD[~GENSYM[data_fast][2]][13];
+reg ~SIGD[~GENSYM[data_slow][1]][10];
+reg ~SIGD[~GENSYM[data_fast][2]][15];
 
 // Port A
 always @(~IF~ACTIVEEDGE[Rising][2]~THENposedge~ELSEnegedge~FI ~ARG[6]) begin
-    ~SYM[1] <= ~SYM[0][~ARG[8]];
     if(~ARG[7]) begin
-        ~SYM[1] <= ~ARG[9];
-        ~SYM[0][~ARG[8]] <= ~ARG[9];
+        ~SYM[1] <= ~SYM[0][~ARG[9]];
+        if(~ARG[8]) begin
+            ~SYM[1] <= ~ARG[10];
+            ~SYM[0][~ARG[9]] <= ~ARG[10];
+        end
     end
 end
 
 // Port B
-always @(~IF~ACTIVEEDGE[Rising][3]~THENposedge~ELSEnegedge~FI ~ARG[10]) begin
-    ~SYM[2] <= ~SYM[0][~ARG[12]];
-    if(~ARG[11]) begin
-        ~SYM[2] <= ~ARG[13];
-        ~SYM[0][~ARG[12]] <= ~ARG[13];
+always @(~IF~ACTIVEEDGE[Rising][3]~THENposedge~ELSEnegedge~FI ~ARG[11]) begin
+    if(~ARG[12]) begin
+        ~SYM[2] <= ~SYM[0][~ARG[14]];
+        if(~ARG[13]) begin
+            ~SYM[2] <= ~ARG[15];
+            ~SYM[0][~ARG[14]] <= ~ARG[15];
+        end
     end
 end
 

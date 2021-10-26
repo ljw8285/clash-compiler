@@ -1,0 +1,2 @@
+INTERNAL CHANGE: Added NoOp to RamOp for `Clash.Explicit.BlockRam.trueDualPorBlockRam`,
+NoOp pulls the enable signal of trueDualPortBlockRam low for the relevant port.
