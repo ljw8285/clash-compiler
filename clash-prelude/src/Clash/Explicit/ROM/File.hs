@@ -97,7 +97,6 @@ import Data.Array                   (listArray)
 import Data.Array.Base              (unsafeAt)
 import GHC.TypeLits                 (KnownNat)
 import System.IO.Unsafe             (unsafePerformIO)
---
 import Clash.Explicit.BlockRam.File (initMem, memFile)
 import Clash.Promoted.Nat           (SNat (..), pow2SNat, snatToNum)
 import Clash.Sized.BitVector        (BitVector)
