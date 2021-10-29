@@ -163,6 +163,7 @@ instance Backend VHDLState where
     Reset {} -> pure SynonymType
     Enable {} -> pure SynonymType
     Index {} -> pure SynonymType
+    MemBlob {} -> pure SynonymType
     CustomSP {} -> pure SynonymType
     SP {} -> pure SynonymType
     -- TODO This could possibly be changed to a VHDL enum as well, provided the
@@ -567,6 +568,7 @@ tyDec hwty = do
     Reset _           -> typAliasDec hwty
     Enable _          -> typAliasDec hwty
     Index _           -> typAliasDec hwty
+    MemBlob _ _       -> typAliasDec hwty
     CustomSP _ _ _ _  -> typAliasDec hwty
     Sum _ _           -> typAliasDec hwty
     SP _ _            -> typAliasDec hwty
@@ -1131,6 +1133,12 @@ tyName' rec0 (filterTransparent -> t) = do
                             , if rec0 then showt n `TextS.append` "_" else ""
                             , elTy']
       Ap $ makeCached (t, rec0) nameCache (return nm)
+    MemBlob n m -> do
+      let nm = TextS.concat [ "memblob_of_"
+                            , if rec0 then showt n `TextS.append` "_" else ""
+                            , "std_logic_vector"
+                            , if rec0 then "_" `TextS.append` showt m else ""]
+      Ap $ makeCached (t, rec0) nameCache (return nm)
     RTree n elTy  -> do
       elTy' <- tyName' True elTy
       let nm = TextS.concat [ "tree_of_"
@@ -1195,6 +1203,7 @@ normaliseType enums@(RenderEnums e) hwty = case hwty of
   Reset _           -> Bit
   Enable _          -> Bool
   Index _           -> Unsigned (typeSize hwty)
+  MemBlob n m       -> Vector n (BitVector m)
   CustomSP _ _ _ _  -> BitVector (typeSize hwty)
   SP _ _            -> BitVector (typeSize hwty)
   CustomSum _ _ _ _ -> BitVector (typeSize hwty)
@@ -1211,6 +1220,7 @@ filterTransparent hwty = case hwty of
   Signed _          -> hwty
   Unsigned _        -> hwty
   BitVector _       -> hwty
+  MemBlob _ _       -> hwty
   String            -> hwty
   Integer           -> hwty
   Bit               -> hwty
@@ -1598,6 +1608,19 @@ expr_ _ e@(DataCon ty@(Vector _ elTy) _ [e1,e2]) = do
     _ -> qualTyName ty <> "'" <> case vectorChain e of
             Just es -> align (tupled (mapM (expr_ False) es))
             Nothing -> parens (qualTyName elTy <> "'" <> parens (expr_ False e1) <+> "&" <+> expr_ False e2)
+
+expr_ _ e@(DataCon ty@(MemBlob n m) _ [n0, m0, runsLen, runs, endsLen, ends])
+  | Literal _ (NumLit n1) <- n0
+  , n == n1
+  , Literal _ (NumLit m1) <- m0
+  , m == m1
+  , Literal _ (NumLit runsLen0) <- runsLen
+  , Literal Nothing (StringLit runs0) <- runs
+  , Literal _ (NumLit endsLen0) <- endsLen
+  , Literal Nothing (StringLit ends0) <- ends = do
+    let es = unpackMemBlobRaw n m runsLen0 runs0 endsLen0 ends0    -- -> [Natural]
+        el val = exprLit (Just (BitVector (fromInteger m),fromInteger m)) (BitVecLit 0 val)
+    align $ tupled $ mapM el es
 
 expr_ _ (DataCon ty@(RTree 0 elTy) _ [e]) = do
   syn <- Ap hdlSyn

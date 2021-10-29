@@ -856,6 +856,7 @@ mkExpr _ _ _ (stripTicks -> Core.Literal l) = do
 #else
     ByteArrayLiteral (ByteArray ba) -> return (HW.Literal Nothing (NumLit (Jp# (BN# ba))),[])
 #endif
+    StringLiteral s  -> return (HW.Literal Nothing $ StringLit s, [])
     _ -> error $ $(curLoc) ++ "not an integer or char literal"
 
 mkExpr bbEasD declType bndr app =
@@ -1091,6 +1092,11 @@ mkDcApplication [dstHType] bndr dc args = do
       Vector _ _ -> case argExprsFiltered of
                       [e1,e2] -> return (HW.DataCon dstHType VecAppend [e1,e2])
                       _ -> error $ $(curLoc) ++ "Unexpected number of arguments for `Cons`: " ++ showPpr args
+      MemBlob _ _ ->
+        case compare 6 (length argExprsFiltered) of
+          EQ -> return (HW.DataCon dstHType (DC (dstHType,0)) argExprsFiltered)
+          LT -> error $ $(curLoc) ++ "Over-applied constructor"
+          GT -> error $ $(curLoc) ++ "Under-applied constructor"
       RTree 0 _ -> case argExprsFiltered of
                       [e] -> return (HW.DataCon dstHType RTreeAppend [e])
                       _ -> error $ $(curLoc) ++ "Unexpected number of arguments for `LR`: " ++ showPpr args

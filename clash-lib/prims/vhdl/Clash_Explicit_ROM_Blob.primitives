@@ -14,10 +14,10 @@
     , "template" :
 "-- rom begin
 ~GENSYM[~COMPNAME_rom][1] : block
-  signal ~GENSYM[ROM][2] : ...;
+  signal ~GENSYM[ROM][2] : ~TYP[6];
   signal ~GENSYM[rd][3]  : integer range 0 to ~LIT[1]-1;
 begin
-  ~SYM[2] <= ...;
+  ~SYM[2] <= ~CONST[6];
 
   ~SYM[3] <= to_integer(~VAR[rdI][7](31 downto 0))
   -- pragma translate_off

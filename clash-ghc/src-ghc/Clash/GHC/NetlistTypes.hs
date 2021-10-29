@@ -234,6 +234,12 @@ ghcTypeToHWType iw floatSupport = go
           let filtered = [replicate sz1 (isVoid, fElHWTy)]
           return (FilteredHWType vecHWTy filtered)
 
+        "Clash.Explicit.BlockRam.Internal.MemBlob" -> do
+          let [nTy, mTy] = args
+          n0 <- liftE (tyNatSize m nTy)
+          m0 <- liftE (tyNatSize m mTy)
+          returnN (MemBlob (fromInteger n0) (fromInteger m0))
+
         "Clash.Sized.RTree.RTree" -> do
           let [szTy,elTy] = args
           sz0     <- liftE (tyNatSize m szTy)
@@ -254,6 +260,7 @@ ghcTypeToHWType iw floatSupport = go
           return (FilteredHWType vecHWTy filtered)
 
         "String" -> returnN String
+        "GHC.Prim.Addr#" -> returnN String
         "GHC.Types.[]" -> case tyView (head args) of
           (TyConApp (nameOcc -> "GHC.Types.Char") []) -> returnN String
           _ -> throwE $ "Can't translate type: " ++ showPpr ty

@@ -91,6 +91,20 @@ packAsNats n trans es = (len0, toLazyByteString runs0, toLazyByteString ends)
     ends2 = word64BE endA1 <> ends1
     valEnd = fromIntegral val
 
+unpackMemBlobRaw
+  :: Int
+  -> Int
+  -> Int
+  -> Addr#
+  -> Int
+  -> Addr#
+  -> [Natural]
+unpackMemBlobRaw n m runsLen runs endsLen ends =
+  unpackNats m n runsB endsB
+ where
+  runsB = unsafePerformIO $ B.unsafePackAddressLen runsLen runs
+  endsB = unsafePerformIO $ B.unsafePackAddressLen endsLen ends
+
 unpackNats
   :: Int
   -> Int
