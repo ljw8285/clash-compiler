@@ -15,11 +15,13 @@ import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as L
 -- import qualified Data.ByteString.Lazy.Char8 as L8
 import Data.ByteString.Builder (Builder, toLazyByteString, word8, word64BE)
+import qualified Data.ByteString.Unsafe as B
 import Data.Word (Word64)
 import GHC.Exts (Addr#)
 import GHC.Stack (HasCallStack, withFrozenCallStack)
 import GHC.TypeLits (KnownNat)
 import Numeric.Natural (Natural)
+import System.IO.Unsafe (unsafePerformIO)
 
 import Clash.Promoted.Nat (natToNum, SNat(..))
 import Clash.Sized.Internal.BitVector (Bit(..), BitVector(..))
@@ -91,7 +93,7 @@ packAsNats n trans es = (len0, toLazyByteString runs0, toLazyByteString ends)
     ends2 = word64BE endA1 <> ends1
     valEnd = fromIntegral val
 
-unpackMemBlobRaw
+unpackNatsAddrLen
   :: Int
   -> Int
   -> Int
@@ -99,8 +101,8 @@ unpackMemBlobRaw
   -> Int
   -> Addr#
   -> [Natural]
-unpackMemBlobRaw n m runsLen runs endsLen ends =
-  unpackNats m n runsB endsB
+unpackNatsAddrLen n m runsLen runs endsLen ends =
+  unpackNats n m runsB endsB
  where
   runsB = unsafePerformIO $ B.unsafePackAddressLen runsLen runs
   endsB = unsafePerformIO $ B.unsafePackAddressLen endsLen ends
@@ -111,16 +113,16 @@ unpackNats
   -> B.ByteString
   -> B.ByteString
   -> [Natural]
-unpackNats _ 0 _ _ = []
-unpackNats n len runBs endBs
-  | n < 8     = ends
+unpackNats 0 _ _ _ = []
+unpackNats n m runBs endBs
+  | m < 8     = ends
   | otherwise = go (head ends) runL runBs (tail ends)
  where
-  (runL, endL) = n `divMod` 8
+  (runL, endL) = m `divMod` 8
   ends = if endL == 0 then
            repeat 0
          else
-           unpackEnds endL len $ unpackW64s endBs
+           unpackEnds endL n $ unpackW64s endBs
 
   go val 0    runBs0 ~(end0:ends0) = val : go end0 runL runBs0 ends0
   go _   _    runBs0 _             | B.null runBs0 = []
@@ -146,15 +148,15 @@ unpackEnds
   -> Int
   -> [Word64]
   -> [Natural]
-unpackEnds _    _   []     = []
-unpackEnds endL len (w:ws) = go endCInit w ws
+unpackEnds _    _ []     = []
+unpackEnds endL n (w:ws) = go endCInit w ws
  where
   endPerWord = 64 `div` endL
-  leader = len `mod` endPerWord
+  leader = n `mod` endPerWord
   endCInit | leader == 0 = endPerWord
            | otherwise   = leader
 
   go 0 _    []       = []
   go 0 _    (w0:ws0) = go endPerWord w0 ws0
-  go n endA ws0      = let (endA0, valEnd) = endA `divMod` (2 ^ endL)
-                       in fromIntegral valEnd : go (n-1) endA0 ws0
+  go j endA ws0      = let (endA0, valEnd) = endA `divMod` (2 ^ endL)
+                       in fromIntegral valEnd : go (j - 1) endA0 ws0

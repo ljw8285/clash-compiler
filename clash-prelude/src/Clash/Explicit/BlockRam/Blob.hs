@@ -73,7 +73,7 @@ unpackMemBlob
   -> [BitVector m]
 unpackMemBlob (MemBlob SNat SNat runsLen runs endsLen ends)
   = map (BV 0) $
-      unpackNats (natToNum @m) (natToNum @n) runsB endsB
+      unpackNats (natToNum @n) (natToNum @m) runsB endsB
  where
   runsB = unsafePerformIO $ B.unsafePackAddressLen runsLen runs
   endsB = unsafePerformIO $ B.unsafePackAddressLen endsLen ends

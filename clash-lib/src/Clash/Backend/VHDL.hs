@@ -26,6 +26,7 @@ import           Control.Monad                        (forM,join,zipWithM)
 import           Control.Monad.State                  (State, StateT)
 import           Data.Bifunctor                       (first)
 import           Data.Bits                            (testBit, Bits)
+import qualified Data.ByteString.Char8                as B8
 import           Data.Function                        (on)
 import           Data.HashMap.Lazy                    (HashMap)
 import qualified Data.HashMap.Lazy                    as HashMap
@@ -63,6 +64,7 @@ import           Clash.Annotations.BitRepresentation.Util
 import           Clash.Backend
 import           Clash.Core.Var                       (Attr'(..),attrName)
 import           Clash.Debug                          (traceIf)
+import           Clash.Explicit.BlockRam.Internal     (unpackNats)
 import           Clash.Netlist.BlackBox.Types         (HdlSyn (..))
 import           Clash.Netlist.BlackBox.Util
   (extractLiterals, renderBlackBox, renderFilePath)
@@ -1137,7 +1139,8 @@ tyName' rec0 (filterTransparent -> t) = do
       let nm = TextS.concat [ "memblob_of_"
                             , if rec0 then showt n `TextS.append` "_" else ""
                             , "std_logic_vector"
-                            , if rec0 then "_" `TextS.append` showt m else ""]
+                            , "_"
+                            , showt m]
       Ap $ makeCached (t, rec0) nameCache (return nm)
     RTree n elTy  -> do
       elTy' <- tyName' True elTy
@@ -1203,6 +1206,12 @@ normaliseType enums@(RenderEnums e) hwty = case hwty of
   Reset _           -> Bit
   Enable _          -> Bool
   Index _           -> Unsigned (typeSize hwty)
+  -- FIXME: subtype looks like array_of_std_logic_vector_m(0 to n-1)
+  --        should be array_of_std_logic_vector_m
+  --        and then ~TYP[x] should have the (0 to n-1)
+  --        OR subtype needs to have length info in its name
+  -- FIXME: type def of array_of_std_logic_vector_m is missing. Because of
+  --        MemBlob being a "simple type" when it is not?
   MemBlob n m       -> Vector n (BitVector m)
   CustomSP _ _ _ _  -> BitVector (typeSize hwty)
   SP _ _            -> BitVector (typeSize hwty)
@@ -1611,16 +1620,16 @@ expr_ _ e@(DataCon ty@(Vector _ elTy) _ [e1,e2]) = do
 
 expr_ _ e@(DataCon ty@(MemBlob n m) _ [n0, m0, runsLen, runs, endsLen, ends])
   | Literal _ (NumLit n1) <- n0
-  , n == n1
+  , n == fromInteger n1
   , Literal _ (NumLit m1) <- m0
-  , m == m1
+  , m == fromInteger m1
   , Literal _ (NumLit runsLen0) <- runsLen
   , Literal Nothing (StringLit runs0) <- runs
   , Literal _ (NumLit endsLen0) <- endsLen
   , Literal Nothing (StringLit ends0) <- ends = do
-    let es = unpackMemBlobRaw n m runsLen0 runs0 endsLen0 ends0    -- -> [Natural]
-        el val = exprLit (Just (BitVector (fromInteger m),fromInteger m)) (BitVecLit 0 val)
-    align $ tupled $ mapM el es
+    let es = unpackNats n m (B8.pack runs0) (B8.pack ends0) --  es = unpackNatsAddrLen n m runsLen0 runs0 endsLen0 ends0
+        el val = exprLit (Just (BitVector m, m)) (BitVecLit 0 $ toInteger val)
+    qualTyName ty <> "'" <> (align $ tupled $ mapM el es)
 
 expr_ _ (DataCon ty@(RTree 0 elTy) _ [e]) = do
   syn <- Ap hdlSyn
