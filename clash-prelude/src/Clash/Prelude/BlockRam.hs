@@ -861,7 +861,7 @@ trueDualPortBlockRam ::
   -> (Signal dom1 a, Signal dom2 a)
   -- ^ Outputs data on /next/ cycle. When writing, the data written
   -- will be echoed. When reading, the read data is returned.
-trueDualPortBlockRam inA inB = E.trueDualPortBlockRam (hasClock @dom1) (hasClock @dom2)
+trueDualPortBlockRam inA inB = E.trueDualPortBlockRam (hasClock @dom1) (hasClock @dom2) E.WriteFirst E.WriteFirst
  inA inB
 #else
   forall nAddrs dom a .
@@ -877,6 +877,6 @@ trueDualPortBlockRam inA inB = E.trueDualPortBlockRam (hasClock @dom1) (hasClock
   -> (Signal dom a, Signal dom a)
   -- ^ Outputs data on /next/ cycle. When writing, the data written
   -- will be echoed. When reading, the read data is returned.
-trueDualPortBlockRam inA inB = E.trueDualPortBlockRam hasClock hasClock
+trueDualPortBlockRam wmA wmB inA inB = E.trueDualPortBlockRam hasClock hasClock wmA wmB
  inA inB
 #endif
