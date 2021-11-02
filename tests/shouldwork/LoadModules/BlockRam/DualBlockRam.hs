@@ -33,7 +33,7 @@ testBench wmA wmB rstA rstB simOutA simOutB =
     doneA' = not <$> doneA
     doneB  = outoutVerifierB clkB rstB simOutB $ pack <$> actualOutputB
     doneB' = not <$> doneB
-    
+
     (clkA, clkB) = (tbClockGen doneA', tbClockGen doneB')
     -- Testbench clocks
 
@@ -77,7 +77,7 @@ simOutA_NC_WF_BC = processSimOutput $(collectSimResults 300 $ pack <$> (fst $ to
 simOutA_NC_RF_AB = processSimOutput $(collectSimResults 300 $ pack <$> (fst $ topOut clk20 clk10 NoChange ReadFirst rst20 rst10))
 simOutA_NC_RF_BC = processSimOutput $(collectSimResults 300 $ pack <$> (fst $ topOut clk10 clk7 NoChange ReadFirst rst10 rst7))
 simOutA_NC_NC_AB = processSimOutput $(collectSimResults 300 $ pack <$> (fst $ topOut clk20 clk10 NoChange NoChange rst20 rst10))
-simOutA_NC_NC_BC = processSimOutput $(collectSimResults 300 $ pack <$> (fst $ topOut clk10 clk7 NoChange NoChange rst10 rst7)) 
+simOutA_NC_NC_BC = processSimOutput $(collectSimResults 300 $ pack <$> (fst $ topOut clk10 clk7 NoChange NoChange rst10 rst7))
 simOutB_WF_WF_AB = processSimOutput $(collectSimResults 300 $ pack <$> (snd $ topOut clk20 clk10 WriteFirst WriteFirst rst20 rst10))
 simOutB_WF_WF_BC = processSimOutput $(collectSimResults 300 $ pack <$> (snd $ topOut clk10 clk7 WriteFirst WriteFirst rst10 rst7))
 simOutB_WF_RF_AB = processSimOutput $(collectSimResults 300 $ pack <$> (snd $ topOut clk20 clk10 WriteFirst ReadFirst rst20 rst10))

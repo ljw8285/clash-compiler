@@ -36,11 +36,9 @@ topEntity ::
   -- Clocks
   Clock  domA ->
   Clock  domB ->
-  
-  -- Write Modes
-  WriteMode ->
-  WriteMode ->
 
+  -- Configuration
+  TDPConfig ->
   --Operations
   Signal domA (RamOp 30 ThisOrThat) ->
   Signal domB (RamOp 30 ThisOrThat) ->
@@ -155,5 +153,5 @@ inputWritesA, inputWritesB :: KnownDomain dom => Clock dom -> Reset dom -> Signa
 inputWritesA clk rst = stimuliGenerator clk rst opsA
 inputWritesB clk rst = stimuliGenerator clk rst opsB
 
-topOut clkA clkB wmA wmB rstA rstB = 
-  topEntity clkA clkB wmA wmB (inputWritesA clkA rstA ) (inputWritesB clkB rstB)
+topOut clkA clkB wmA wmB rstA rstB =
+  topEntity clkA clkB (tdpDefault{writeModeA = wmA, writeModeB = wmB}) (inputWritesA clkA rstA ) (inputWritesB clkB rstB)

@@ -403,12 +403,14 @@ module Clash.Explicit.BlockRam
   , trueDualPortBlockRam
   , RamOp(..)
   , WriteMode(..)
+  , TDPConfig(..)
   , ResetStrategy(..)
     -- * Read/Write conflict resolution
   , readNew
     -- * Internal
   , blockRam#
   , trueDualPortBlockRam#
+  , tdpDefault
   )
 where
 
@@ -435,11 +437,10 @@ import           Unsafe.Coerce          (unsafeCoerce)
 import           Clash.Annotations.Primitive
   (hasBlackBox)
 import           Clash.Class.Num        (SaturationMode(SatBound), satSucc)
-import           Clash.Explicit.Signal  (KnownDomain, Enable, register, fromEnable, resetGen)
+import           Clash.Explicit.Signal  (KnownDomain, Enable, register, fromEnable)
 import           Clash.Signal.Internal
   (Clock(..), Reset, Signal (..), invertReset, (.&&.), mux)
 import           Clash.Promoted.Nat     (SNat(..), snatToNum, natToNum)
-import           Clash.Signal           (exposeReset)
 import           Clash.Signal.Bundle    (unbundle, bundle)
 import           Clash.Signal.Internal.Ambiguous (clockPeriod)
 import           Clash.Sized.Unsigned   (Unsigned)
@@ -449,8 +450,7 @@ import qualified Clash.Sized.Vector     as CV
 import           Clash.XException
   (maybeIsX, NFDataX, deepErrorX, defaultSeqX, fromJustX, undefined,
    XException (..), seqX, isX)
-import           Debug.Trace 
-import Clash.XException
+
 -- start benchmark only
 -- import GHC.Arr (listArray, unsafeThawSTArray)
 -- end benchmark only
@@ -1112,8 +1112,22 @@ readNew clk rst en ram rdAddr wrM = mux wasSame wasWritten $ ram rdAddr wrM
           unbundle (register clk rst en (False, undefined)
                              (readNewT <$> rdAddr <*> wrM))
 
+data TDPConfig = TDPConfig {
+  writeModeA :: WriteMode,
+  writeModeB :: WriteMode,
+  outputRegA :: Bool,
+  outputRegB :: Bool}
 
-data RamOp n a = RamRead (Index n) | RamWrite (Index n) a | NoOp deriving(Generic,NFDataX)
+tdpDefault = TDPConfig {
+  writeModeA = NoChange,
+  writeModeB = NoChange,
+  outputRegA = True,
+  outputRegB = False}
+
+data RamOp n a = RamRead (Index n) |
+                 RamWrite (Index n) a |
+                 NoOp
+                 deriving(Generic,NFDataX)
 
 ramOpAddr ::(KnownNat n) =>  RamOp n a -> Index n
 ramOpAddr (RamRead addr)    = addr
@@ -1153,10 +1167,8 @@ trueDualPortBlockRam ::
   -- ^ Clock for port A
   -> Clock domB
   -- ^ Clock for port B
-  -> WriteMode 
-  -- ^ Write mode for port A
-  -> WriteMode 
-  -- ^ Write mode for port B
+  -> TDPConfig
+  -- ^ Configuration of the TDP Blockram
   -> Signal domA (RamOp nAddrs a)
   -- ^ ram operation for port A
   -> Signal domB (RamOp nAddrs a)
@@ -1166,14 +1178,25 @@ trueDualPortBlockRam ::
   -- will be echoed. When reading, the read data is returned.
 
 {-# INLINE trueDualPortBlockRam #-}
-trueDualPortBlockRam = \clkA clkB wmA wmB opA opB ->
+trueDualPortBlockRam = \clkA clkB config opA opB ->
   trueDualPortBlockRamWrapper
-    clkA wmA (isOp <$> opA) (isRamWrite <$> opA) (ramOpAddr <$> opA) (fromJustX . ramOpWriteVal <$> opA)
-    clkB wmB (isOp <$> opB) (isRamWrite <$> opB) (ramOpAddr <$> opB) (fromJustX . ramOpWriteVal <$> opB)
+    (writeModeA config)
+    (outputRegA config)
+    (writeModeB config)
+    (outputRegB config)
+    clkA
+    (isOp <$> opA)
+    (isRamWrite <$> opA)
+    (ramOpAddr <$> opA)
+    (fromJustX . ramOpWriteVal <$> opA)
+    clkB
+    (isOp <$> opB)
+    (isRamWrite <$> opB)
+    (ramOpAddr <$> opB)
+    (fromJustX . ramOpWriteVal <$> opB)
 
-
-trueDualPortBlockRamWrapper clkA wmA enA weA addrA datA clkB wmB enB weB addrB datB =
-  trueDualPortBlockRam# clkA wmA enA weA addrA datA clkB wmB enB weB addrB datB
+trueDualPortBlockRamWrapper wmA outRegA wmB outRegB clkA enA weA addrA datA clkB enB weB addrB datB =
+ trueDualPortBlockRam# wmA outRegA wmB outRegB clkA enA weA addrA datA clkB enB weB addrB datB
 {-# NOINLINE trueDualPortBlockRamWrapper #-}
 
 -- | Primitive of 'trueDualPortBlockRam'.
@@ -1186,10 +1209,16 @@ trueDualPortBlockRam#, trueDualPortBlockRamWrapper ::
   , NFDataX a
   , (a ~ a)   -- BitPack a -- temp hack to avoid renumbering ~ARGs
   )
-  => Clock domA
-  -- ^ Clock for port A
-  -> WriteMode 
+  => WriteMode
+  -- ^ Write mode for port B
+  -> Bool
+  -- ^ Whether output B is registered
+  -> WriteMode
   -- ^ Write mode for port A
+  -> Bool
+  -- ^ Whether output A is registered
+  -> Clock domA
+  -- ^ Clock for port A
   -> Signal domA Bool
   -- ^ Enable for port A
   -> Signal domA Bool
@@ -1198,11 +1227,8 @@ trueDualPortBlockRam#, trueDualPortBlockRamWrapper ::
   -- ^ Address to read from or write to on port A
   -> Signal domA a
   -- ^ Data in for port A; ignored when /write enable/ is @False@
-
   -> Clock domB
   -- ^ Clock for port B
-  -> WriteMode 
-  -- ^ Write mode for port B
   -> Signal domB Bool
   -- ^ Enable for port B
   -> Signal domB Bool
@@ -1215,11 +1241,14 @@ trueDualPortBlockRam#, trueDualPortBlockRamWrapper ::
   -> (Signal domA a, Signal domB a)
   -- ^ Outputs data on /next/ cycle. If write enable is @True@, the data written
   -- will be echoed. If write enable is @False@, the read data is returned.
-trueDualPortBlockRam# clkA wmA enA weA addrA datA clkB wmB enB weB addrB datB
+trueDualPortBlockRam# wmA outRegA wmB outRegB clkA enA weA addrA datA
+ clkB enB weB addrB datB
   | snatToNum @Int (clockPeriod @domA) < snatToNum @Int (clockPeriod @domB)
-  = swap (trueDualPortBlockRamModel clkB wmB enB weB addrB datB clkA wmA enA weA addrA datA)
+  = swap (trueDualPortBlockRamModel
+   clkB wmB outRegB enB weB addrB datB clkA wmA outRegA enA weA addrA datA)
   | otherwise
-  =       trueDualPortBlockRamModel clkA wmA enA weA addrA datA clkB wmB enB weB addrB datB
+  = trueDualPortBlockRamModel
+   clkA wmA outRegA enA weA addrA datA clkB wmB outRegB enB weB addrB datB
 {-# NOINLINE trueDualPortBlockRam# #-}
 {-# ANN trueDualPortBlockRam# hasBlackBox #-}
 
@@ -1239,6 +1268,7 @@ trueDualPortBlockRamModel ::
 
   Clock domSlow ->
   WriteMode ->
+  Bool ->
   Signal domSlow Bool ->
   Signal domSlow Bool ->
   Signal domSlow (Index nAddrs) ->
@@ -1246,33 +1276,61 @@ trueDualPortBlockRamModel ::
 
   Clock domFast ->
   WriteMode ->
+  Bool ->
   Signal domFast Bool ->
   Signal domFast Bool ->
   Signal domFast (Index nAddrs) ->
   Signal domFast a ->
 
   (Signal domSlow a, Signal domFast a)
-trueDualPortBlockRamModel !_clkSlow wmSlow enSlow weSlow addrSlow datSlow 
-                          !_clkFast wmFast enFast weFast addrFast datFast = (outSlow, outFast)
+trueDualPortBlockRamModel !_clkSlow wmSlow outRegSlow enSlow weSlow addrSlow datSlow
+                          !_clkFast wmFast outRegFast enFast weFast addrFast datFast
+                          = (initSlow :- outSlow, initFast :- outFast)
  where
+  initSlow = deepErrorX "trueDualPortBlockRam: Port Slow: First value undefined"
+  initFast = deepErrorX "trueDualPortBlockRam: Port Fast: First value undefined"
+
   (outSlow, outFast) =
-   ( deepErrorX "trueDualPortBlockRam: Port Slow: First value undefined" :- outSlow'
-   , deepErrorX "trueDualPortBlockRam: Port Fast: First value undefined" :- outFast')
-  (outSlow', outFast') =
     go
       (Seq.fromFunction (natToNum @nAddrs) initElement)
       0 -- ensure 'go' hits fast clock first
-      (bundle (enSlow, weSlow, fromIntegral <$> addrSlow, datSlow, outSlow))
-      (bundle (enFast, weFast, fromIntegral <$> addrFast, datFast, outFast))
+      (bundle (enSlow, weSlow, fromIntegral <$> addrSlow, datSlow))
+      (bundle (enFast, weFast, fromIntegral <$> addrFast, datFast))
       Nothing
       Nothing
-  
+      (initSlow, initSlow, initFast, initFast)
+
   tSlow = snatToNum @Int (clockPeriod @domSlow)
   tFast = snatToNum @Int (clockPeriod @domFast)
 
   initElement :: Int -> a
   initElement n =
     deepErrorX ("Unknown initial element; position " <> show n)
+
+  getConflict :: Bool -> Int -> Bool -> Int -> Maybe Int -> (Bool, Bool)
+  getConflict writeEnable addr otherWriteEnable otherAddr otherWrote =
+    (memoryConflict, outputConflict)
+    where
+      -- A write conflict occurs when the port tries to write to an address while the
+      -- other port is in its current cycle writing to the same address. address collides
+      writeCycleCollission =
+        case (isX addr, isX otherWrote) of
+          (Right addr_, Right (Just otherAddr')) -> addr_ == otherAddr'
+          (Left _, _) -> True
+          (_, Left _) -> True
+          (_, Right (Nothing)) -> False
+
+      memoryConflict =
+        case isX writeEnable of
+          Right False -> False
+          _           -> writeCycleCollission
+      -- A read conflict occurs when the other port is writing to the same address.
+      outputConflict = (sameAddr && otherWriteEnable) || writeCycleCollission
+      sameAddr =
+        case (isX addr, isX otherAddr) of
+          (Left _, _) -> True
+          (_, Left _) -> True
+          _           -> addr == otherAddr
 
   unknownEnableAndAddr :: Int -> a
   unknownEnableAndAddr n =
@@ -1281,37 +1339,6 @@ trueDualPortBlockRamModel !_clkSlow wmSlow enSlow weSlow addrSlow datSlow
   unknownAddr :: Int -> a
   unknownAddr n =
     deepErrorX ("Write enabled, but address unknown; position " <> show n)
-
-  getConflict :: Bool -> Int -> Bool -> Int -> Maybe Int -> (Bool, Bool)
-  getConflict writeEnable addr otherWriteEnable otherAddr otherWrote =
-    (memoryConflict, outputConflict)
-    where
-      -- A write conflict occurs when the port tries to write to an address while the 
-      -- other port is in its current cycle writing to the same address. address collides
-      writeCycleCollission = 
-        case (isX addr, isX otherWrote) of
-          (Right addr_, Right (Just otherAddr')) -> addr_ == otherAddr'
-          (Left _, _) -> True
-          (_, Left _) -> True
-          (_, Right (Nothing)) -> False
-          
-      memoryConflict = 
-        case isX writeEnable of
-          Right False -> False
-          _           -> writeCycleCollission
-      -- A read conflict occurs when the other port is 
-      otherEnable' =
-        case (isX writeEnable, isX otherWriteEnable) of
-          (_, Left _)               -> True
-          (_, Right True)           -> True
-          (_,_)                     -> False
-      
-      outputConflict = (sameAddr && otherWriteEnable) || writeCycleCollission
-      sameAddr =
-        case (isX addr, isX otherAddr) of
-          (Left _, _) -> True
-          (_, Left _) -> True
-          _           -> addr == otherAddr
 
   writeRam :: Bool -> Int -> a -> Seq a -> (Maybe a, Seq a)
   writeRam enable addr dat mem
@@ -1334,48 +1361,68 @@ trueDualPortBlockRamModel !_clkSlow wmSlow enSlow weSlow addrSlow datSlow
   go ::
     Seq a ->
     Int ->
-    Signal domSlow (Bool, Bool, Int, a, a) ->
-    Signal domFast (Bool, Bool, Int, a, a) ->
+    Signal domSlow (Bool, Bool, Int, a) ->
+    Signal domFast (Bool, Bool, Int, a) ->
     Maybe Int ->
     Maybe Int ->
+    (a, a, a, a) ->
     (Signal domSlow a, Signal domFast a)
-  go ram0 relativeTime as0 bs0 writingSlow writingFast =
+  go ram0 relativeTime as0 bs0 writingSlow writingFast (oldSlow, oldSlow', oldFast, oldFast')=
     if relativeTime <= tFast then goSlow else goFast
    where
-    (enSlow_, weSlow_, addrSlow_, datSlow_, oldSlow) :- as1 = as0
-    (enFast_, weFast_, addrFast_, datFast_, oldFast) :- bs1 = bs0
+    (enSlow_, weSlow_, addrSlow_, datSlow_) :- as1 = as0
+    (enFast_, weFast_, addrFast_, datFast_) :- bs1 = bs0
 
     -- 1 iteration here, as this is the slow clock.
-    goSlow = out1 `seqX` (out1 :- as2, bs2)
+    goSlow = out3 `seqX` (out3 :- as2, bs2)
      where
       (memConflict, outConflict) = getConflict weSlow_ addrSlow_ weFast_ addrFast_ writingFast
-      newMem = if memConflict then deepErrorX ("trueDualPortBlockRam Slow port: Memory write conflict, at " <> show addrSlow_) else datSlow_ 
+      newMem =
+        if memConflict
+        then deepErrorX
+        ("trueDualPortBlockRam Slow port: Memory write conflict, at " <> show addrSlow_)
+        else datSlow_
+
       (wrote, !ram1) = writeRam weSlow_ addrSlow_ newMem ram0
 
       out0 = case (outConflict, wmSlow) of
         (False, WriteFirst) -> fromMaybe (ram1 `Seq.index` addrSlow_) wrote
         (False, ReadFirst)  -> ram0 `Seq.index` addrSlow_
         (False, NoChange)   -> if weSlow_ then oldSlow else ram0 `Seq.index` addrSlow_
-        (True, _)           -> deepErrorX $ "trueDualPortBlockRam Slow port: Read conflict" <> show addrSlow_
-      
-      writing = if weSlow_ then (Just addrSlow_) else Nothing 
+        (True, _)           -> deepErrorX $
+         "trueDualPortBlockRam Slow port: Read conflict" <> show addrSlow_
+
+      writing = if weSlow_ then (Just addrSlow_) else Nothing
       out1 = if enSlow_ then out0 else oldSlow
+      out2 = if enSlow_ then oldSlow else oldSlow'
+      out3 = if outRegSlow then out2 else out1
+
       (as2, bs2) = go ram1 (relativeTime + tSlow) as1 bs0 writing writingFast
+       (out1, out2, oldFast, oldFast')
 
     -- 1 or more iterations here, as this is the fast clock. First iteration
     -- happens here.
-    goFast = out1 `seqX` (as2, out1 :- bs2)
+    goFast = out3 `seqX` (as2, out3 :- bs2)
      where
       (memConflict, outConflict) = getConflict weFast_ addrFast_ weSlow_ addrSlow_ writingSlow
-      newMem = if memConflict then deepErrorX ("trueDualPortBlockRam Fast port: Memory write conflict, at " <> show addrFast_) else datFast_
+      newMem = if memConflict
+        then deepErrorX
+        ("trueDualPortBlockRam Fast port: Memory write conflict, at " <> show addrFast_)
+        else datFast_
+
       (wrote, !ram1) = writeRam weFast_ addrFast_ newMem ram0
 
       out0 = case (outConflict, wmFast) of
         (False, WriteFirst) -> fromMaybe (ram1 `Seq.index` addrFast_) wrote
         (False, ReadFirst)  -> ram0 `Seq.index` addrFast_
         (False, NoChange)   -> if weFast_ then oldFast else ram0 `Seq.index` addrFast_
-        (True, _)           -> deepErrorX $ "trueDualPortBlockRam Fast port: Read conflict, at " <> show addrFast_
-      
-      writing = if weFast_ then (Just addrFast_) else Nothing 
+        (True, _)           -> deepErrorX $
+         "trueDualPortBlockRam Fast port: Read conflict, at " <> show addrFast_
+
+      writing = if weFast_ then (Just addrFast_) else Nothing
       out1 = if enFast_ then out0 else oldFast
-      (as2, bs2) = go ram1 (relativeTime - tFast) as0 bs1 writingSlow writing 
+      out2 = if enFast_ then oldFast else oldFast'
+      out3 = if outRegFast then out2 else out1
+
+      (as2, bs2) = go ram1 (relativeTime - tFast) as0 bs1 writingSlow writing
+       (oldSlow, oldSlow', out1, out2)
