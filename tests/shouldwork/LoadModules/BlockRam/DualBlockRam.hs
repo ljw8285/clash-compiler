@@ -11,7 +11,6 @@ import Clash.Explicit.BlockRam(WriteMode(..))
 import Clash.Explicit.Testbench
 import Clash.Sized.Internal.BitVector
 import DualBlockRamDefinitions
-import qualified Prelude as P
 import Test.Tasty.Clash.CollectSimResults
 
 

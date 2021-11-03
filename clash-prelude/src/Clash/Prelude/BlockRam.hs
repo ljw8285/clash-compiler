@@ -870,7 +870,7 @@ trueDualPortBlockRam inA inB = E.trueDualPortBlockRam (hasClock @dom1) (hasClock
   forall nAddrs dom a .
   ( HasCallStack
   , KnownNat nAddrs
-  , HiddenClock dom
+  , HiddenClockResetEnable dom
   , NFDataX a
   , BitPack a
   )

@@ -140,8 +140,8 @@ opsA11 = twice (RamRead 11 :> Nil) ++ replicate d20 NoOp
 opsB11 = RamRead 11 :> (fmap RamRead addrsB)
 
 -- Test12
-opsA13 = twice (RamRead 1 :> Nil) ++ (fmap RamRead addrsA)
-opsB13 = RamRead 1 :>  (fmap RamRead addrsB)
+opsA12 = twice (RamRead 1 :> Nil) ++ (fmap RamRead addrsA)
+opsB12 = RamRead 1 :>  (fmap RamRead addrsB)
 
 --All operations
 opsA = (NoOp :> opsA0) ++ opsA1 ++ opsA2 ++ opsA3 ++ opsA4 ++ opsA5 ++ opsA6
