@@ -404,6 +404,7 @@ import           Prelude                 (Enum, Maybe, Eq)
 import           GHC.TypeLits            (KnownNat, type (^), type (<=))
 import           GHC.Stack               (HasCallStack, withFrozenCallStack)
 
+import           Clash.Class.BitPack.Internal (BitPack)
 import qualified Clash.Explicit.BlockRam as E
 import           Clash.Promoted.Nat      (SNat)
 import           Clash.Signal
@@ -850,9 +851,10 @@ trueDualPortBlockRam ::
   forall nAddrs dom1 dom2 a .
   ( HasCallStack
   , KnownNat nAddrs
-  , HiddenClock dom1
-  , HiddenClock dom2
+  , HiddenClockResetEnable dom1
+  , HiddenClockResetEnable dom2
   , NFDataX a
+  , BitPack a
   )
   => Signal dom1 (E.RamOp nAddrs a)
   -- ^ ram operation for port A
@@ -861,7 +863,8 @@ trueDualPortBlockRam ::
   -> (Signal dom1 a, Signal dom2 a)
   -- ^ Outputs data on /next/ cycle. When writing, the data written
   -- will be echoed. When reading, the read data is returned.
-trueDualPortBlockRam inA inB = E.trueDualPortBlockRam (hasClock @dom1) (hasClock @dom2) E.tdpDefault
+trueDualPortBlockRam inA inB = E.trueDualPortBlockRam (hasClock @dom1) (hasClock @dom2)
+ (hasEnable @dom1) (hasEnable @dom2) (hasReset @dom1) (hasReset @dom2) E.tdpDefault
  inA inB
 #else
   forall nAddrs dom a .
@@ -869,6 +872,7 @@ trueDualPortBlockRam inA inB = E.trueDualPortBlockRam (hasClock @dom1) (hasClock
   , KnownNat nAddrs
   , HiddenClock dom
   , NFDataX a
+  , BitPack a
   )
   => Signal dom (E.RamOp nAddrs a)
   -- ^ ram operation for port A
@@ -877,6 +881,7 @@ trueDualPortBlockRam inA inB = E.trueDualPortBlockRam (hasClock @dom1) (hasClock
   -> (Signal dom a, Signal dom a)
   -- ^ Outputs data on /next/ cycle. When writing, the data written
   -- will be echoed. When reading, the read data is returned.
-trueDualPortBlockRam wmA wmB inA inB = E.trueDualPortBlockRam hasClock hasClock E.tdpDefault
+trueDualPortBlockRam inA inB = E.trueDualPortBlockRam hasClock hasClock
+ hasEnable hasEnable hasReset hasReset E.tdpDefault
  inA inB
 #endif
