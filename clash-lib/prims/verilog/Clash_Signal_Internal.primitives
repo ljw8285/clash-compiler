@@ -102,7 +102,7 @@ localparam ~GENSYM[half_period][1] = (~PERIOD[0]0 / 2);
 always begin
   // Delay of 1 mitigates race conditions (https://github.com/steveicarus/iverilog/issues/160)
   #1 ~SYM[0] = ~IF~ACTIVEEDGE[Rising][0]~THEN 0 ~ELSE 1 ~FI;
-  #30000 forever begin
+  #~LONGESTPERIOD0 forever begin
     ~SYM[0] = ~ ~SYM[0];
     #~SYM[1];
     ~SYM[0] = ~ ~SYM[0];
@@ -122,21 +122,14 @@ assign ~RESULT = ~SYM[0];
     , "template" :
 "// resetGen on
 // pragma translate_off
-~IF~ISSYNC[0]~THEN
 reg ~TYPO ~GENSYM[rst][0];
-localparam ~GENSYM[reset_period][1] = 29998 + (~LIT[2] * ~PERIOD[0]0);
+localparam ~GENSYM[half_period][1] = ~PERIOD[0]0 / 2;
+localparam ~GENSYM[reset_period][2] = ~LONGESTPERIOD0 + (~LIT[2] * ~PERIOD[0]0) - ~SYM[1] - 1;
 initial begin
   #1 ~SYM[0] = ~IF ~ISACTIVEHIGH[0] ~THEN 1 ~ELSE 0 ~FI;
-  #~SYM[1] ~SYM[0] = ~IF ~ISACTIVEHIGH[0] ~THEN 0 ~ELSE 1 ~FI;
+  #~SYM[2] ~SYM[0] = ~IF ~ISACTIVEHIGH[0] ~THEN 0 ~ELSE 1 ~FI;
 end
-assign ~RESULT = ~SYM[0];~ELSE
-reg ~TYPO ~SYM[0];
-localparam ~SYM[1] = 30001 + ((~LIT[2] - 1) * ~PERIOD[0]0);
-initial begin
-  #1     ~SYM[0] = ~IF ~ISACTIVEHIGH[0] ~THEN 1 ~ELSE 0 ~FI;
-  #~SYM[1] ~SYM[0] = ~IF ~ISACTIVEHIGH[0] ~THEN 0 ~ELSE 1 ~FI;
-end
-assign ~RESULT = ~SYM[0]; ~FI
+assign ~RESULT = ~SYM[0];
 // pragma translate_on
 // resetGen end"
     }

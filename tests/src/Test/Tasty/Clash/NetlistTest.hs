@@ -81,7 +81,7 @@ type family TargetToState (target :: HDL) where
 
 mkBackend
   :: (Backend (TargetToState target))
-  => SBuildTarget target -> TargetToState target
+  => SBuildTarget target -> (DomainMap -> TargetToState target)
 mkBackend _ = initBackend WORD_SIZE_IN_BITS Other True PreserveCase Nothing (AggressiveXOptBB False) (RenderEnums True)
 
 runToNetlistStage
@@ -94,9 +94,9 @@ runToNetlistStage
   -- ^ Module to load
   -> IO [(ComponentMeta, Component)]
 runToNetlistStage target f src = do
-  pds <- primDirs backend
-  (bm, tcm, tupTcm, tes, pm, rs, _)
-    <- generateBindings (return ()) Auto pds (opt_importPaths opts) [] (hdlKind backend) src Nothing
+  pds <- primDirs backendE
+  (bm, tcm, tupTcm, tes, pm, rs, doms)
+    <- generateBindings (return ()) Auto pds (opt_importPaths opts) [] (hdlKind backendE) src Nothing
 
   let (compNames, initIs) = genTopNames Nothing True PreserveCase hdl tes
       teNames = fmap topId tes
@@ -111,22 +111,21 @@ runToNetlistStage target f src = do
           evaluator
           teNames opts supplyN te
 
+  let backend1 = backend doms
+      iw      = opt_intWidth opts
+      teS     = Text.unpack . nameOcc $ varName te
+      modN    = takeWhile (/= '.') teS
+      hdlSt   = setModName (Text.pack modN) backend1
+      ite     = ifThenElseExpr hdlSt
+      hdlDir  = fromMaybe "." (opt_hdlDir opts)
+        </> Backend.name hdlSt
+        </> takeWhile (/= '.') teS
+
   fmap (\(_,x,_) -> force (P.map snd (OMap.assocs x))) $
-    netlistFrom (transformedBindings, tcm, tes2, compNames, pm, reprs, te, initIs)
+    genNetlist False opts reprs transformedBindings tes2 compNames pm tcm typeTrans
+           iw ite (SomeBackend hdlSt) initIs hdlDir Nothing te
  where
   backend = mkBackend target
+  backendE = backend emptyDomainMap
   opts = f mkClashOpts
   hdl = buildTargetToHdl target
-
-  netlistFrom (bm, tcm, tes, compNames, pm, rs, te, seen) =
-    genNetlist False opts rs bm tes compNames pm tcm typeTrans
-      iw ite (SomeBackend hdlSt) seen hdlDir Nothing te
-   where
-    iw      = opt_intWidth opts
-    teS     = Text.unpack . nameOcc $ varName te
-    modN    = takeWhile (/= '.') teS
-    hdlSt   = setModName (Text.pack modN) backend
-    ite     = ifThenElseExpr hdlSt
-    hdlDir  = fromMaybe "." (opt_hdlDir opts)
-      </> Backend.name hdlSt
-      </> takeWhile (/= '.') teS

@@ -29,6 +29,7 @@ import           Data.Bool                       (bool)
 import           Data.Coerce                     (coerce)
 import           Data.Foldable                   (foldrM)
 import           Data.Hashable                   (Hashable (..))
+import qualified Data.HashMap.Strict             as HashMap
 import qualified Data.IntMap                     as IntMap
 import           Data.List                       (nub)
 import           Data.List.Extra                 (indexMaybe)
@@ -63,7 +64,7 @@ import qualified Clash.Netlist.Id                as Id
 import qualified Clash.Netlist.Types             as N
 import           Clash.Netlist.Util              (typeSize, isVoid, stripVoid)
 import           Clash.Signal.Internal
-  (ResetKind(..), ResetPolarity(..), InitBehavior(..))
+  (ResetKind(..), ResetPolarity(..), InitBehavior(..), VDomainConfiguration (..))
 import           Clash.Util
 import qualified Clash.Util.Interpolate          as I
 
@@ -402,6 +403,11 @@ renderElem b (Period n) = do
       return $ const $ Text.pack $ show period
     _ ->
       error $ $(curLoc) ++ "Period: Expected `KnownDomain` or `KnownConfiguration`, not: " ++ show ty
+
+renderElem _ LongestPeriod = do
+  doms <- domainConfigurations
+  let longestPeriod = maximum [vPeriod v | v <- HashMap.elems doms]
+  return (const (Text.pack (show longestPeriod)))
 
 renderElem b (Tag n) = do
   let (_, ty, _) = bbInputs b !! n
@@ -926,6 +932,7 @@ prettyElem (IsUndefined i) = renderOneLine <$> (string "~ISUNDEFINED" <> bracket
 -- Domain attributes:
 prettyElem (Tag i) = renderOneLine <$> (string "~TAG" <> brackets (int i))
 prettyElem (Period i) = renderOneLine <$> (string "~PERIOD" <> brackets (int i))
+prettyElem LongestPeriod = return "~LONGESTPERIOD"
 prettyElem (ActiveEdge e i) = renderOneLine <$> (string "~ACTIVEEDGE" <> brackets (string (Text.pack (show e))) <> brackets (int i))
 prettyElem (IsSync i) = renderOneLine <$> (string "~ISSYNC" <> brackets (int i))
 prettyElem (IsInitDefined i) = renderOneLine <$> (string "~ISINITDEFINED" <> brackets (int i))
@@ -1026,6 +1033,7 @@ walkElement f el = maybeToList (f el) ++ walked
         IsVar _ -> []
         Tag _ -> []
         Period _ -> []
+        LongestPeriod -> []
         ActiveEdge _ _ -> []
         IsSync _ -> []
         IsInitDefined _ -> []
@@ -1085,6 +1093,7 @@ getUsedArguments (N.BBTemplate t) = nub (concatMap (walkElement matchArg) t)
         ActiveEdge _ _ -> Nothing
         IsSync _ -> Nothing
         Period _ -> Nothing
+        LongestPeriod -> Nothing
         Tag _ -> Nothing
 
         -- Others. Template tags only using types of arguments can be considered

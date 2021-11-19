@@ -109,6 +109,7 @@ data VHDLState =
   -- ^ Cache for enum variant names.
   , _aggressiveXOptBB_ :: AggressiveXOptBB
   , _renderEnums_ :: RenderEnums
+  , _domainConfigurations_ :: DomainMap
   }
 
 makeLenses ''VHDLState
@@ -117,7 +118,7 @@ instance HasIdentifierSet VHDLState where
   identifierSet = idSeen
 
 instance Backend VHDLState where
-  initBackend w hdlsyn_ esc lw undefVal xOpt enums = VHDLState
+  initBackend w hdlsyn_ esc lw undefVal xOpt enums confs = VHDLState
     { _tyCache=mempty
     , _nameCache=mempty
     , _modNm=""
@@ -136,6 +137,7 @@ instance Backend VHDLState where
     , _enumNameCache=mempty
     , _aggressiveXOptBB_=xOpt
     , _renderEnums_=enums
+    , _domainConfigurations_=confs
     }
   hdlKind         = const VHDL
   primDirs        = const $ do root <- primsRoot
@@ -259,6 +261,7 @@ instance Backend VHDLState where
   ifThenElseExpr _ = False
   aggressiveXOptBB = use aggressiveXOptBB_
   renderEnums = use renderEnums_
+  domainConfigurations = use domainConfigurations_
 
 type VHDLM a = Ap (State VHDLState) a
 

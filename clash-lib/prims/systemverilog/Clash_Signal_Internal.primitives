@@ -97,7 +97,7 @@ end
 localparam ~GENSYM[half_period][0] = (~PERIOD[0]0 / 2);
 always begin
   ~RESULT = ~IF~ACTIVEEDGE[Rising][0]~THEN 0 ~ELSE 1 ~FI;
-  #30000 forever begin
+  #~LONGESTPERIOD0 forever begin
     ~RESULT = ~ ~RESULT;
     #~SYM[0];
     ~RESULT = ~ ~RESULT;
@@ -116,18 +116,12 @@ end
     , "template" :
 "// resetGen begin
 // pragma translate_off
-~IF~ISSYNC[0]~THEN
-localparam ~GENSYM[reset_period][1] = 29998 + (~LIT[2] * ~PERIOD[0]0);
+localparam ~GENSYM[half_period][1] = ~PERIOD[0]0 / 2;
+localparam ~GENSYM[reset_period][2] = ~LONGESTPERIOD0 + (~LIT[2] * ~PERIOD[0]0) - ~SYM[1] - 1;
 initial begin
   #1 ~RESULT = ~IF ~ISACTIVEHIGH[0] ~THEN 1 ~ELSE 0 ~FI;
-  #~SYM[1] ~RESULT = ~IF ~ISACTIVEHIGH[0] ~THEN 0 ~ELSE 1 ~FI;
-end~ELSE
-localparam ~SYM[1] = 30001 + ((~LIT[2] - 1) * ~PERIOD[0]0);
-initial begin
-  #1     ~RESULT = ~IF ~ISACTIVEHIGH[0] ~THEN 1 ~ELSE 0 ~FI;
-  #~SYM[1] ~RESULT = ~IF ~ISACTIVEHIGH[0] ~THEN 0 ~ELSE 1 ~FI;
+  #~SYM[2] ~RESULT = ~IF ~ISACTIVEHIGH[0] ~THEN 0 ~ELSE 1 ~FI;
 end
-~FI
 // pragma translate_on
 // resetGen end"
     }

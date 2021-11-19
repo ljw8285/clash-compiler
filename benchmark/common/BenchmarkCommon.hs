@@ -63,7 +63,7 @@ hdl :: HDL
 hdl = VHDL
 
 backend :: VHDLState
-backend = initBackend WORD_SIZE_IN_BITS HDLSYN True PreserveCase Nothing (AggressiveXOptBB False) (RenderEnums True)
+backend = initBackend WORD_SIZE_IN_BITS HDLSYN True PreserveCase Nothing (AggressiveXOptBB False) (RenderEnums True) emptyDomainMap
 
 runInputStage
   :: [FilePath]

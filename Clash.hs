@@ -35,34 +35,34 @@ import Util (OverridingBool(..))
 genSystemVerilog
   :: String
   -> IO ()
-genSystemVerilog = doHDL (initBackend WORD_SIZE_IN_BITS HDLSYN True PreserveCase Nothing (AggressiveXOptBB False) (RenderEnums True) :: SystemVerilogState)
+genSystemVerilog = doHDL (initBackend WORD_SIZE_IN_BITS HDLSYN True PreserveCase Nothing (AggressiveXOptBB False) (RenderEnums True) :: DomainMap -> SystemVerilogState)
 
 genVHDL
   :: String
   -> IO ()
-genVHDL = doHDL (initBackend WORD_SIZE_IN_BITS HDLSYN True PreserveCase Nothing (AggressiveXOptBB False) (RenderEnums True) :: VHDLState)
+genVHDL = doHDL (initBackend WORD_SIZE_IN_BITS HDLSYN True PreserveCase Nothing (AggressiveXOptBB False) (RenderEnums True) :: DomainMap -> VHDLState)
 
 genVerilog
   :: String
   -> IO ()
-genVerilog = doHDL (initBackend WORD_SIZE_IN_BITS HDLSYN True PreserveCase Nothing (AggressiveXOptBB False) (RenderEnums True) :: VerilogState)
+genVerilog = doHDL (initBackend WORD_SIZE_IN_BITS HDLSYN True PreserveCase Nothing (AggressiveXOptBB False) (RenderEnums True) :: DomainMap -> VerilogState)
 
 doHDL
   :: HasCallStack
   => Backend s
-  => s
+  => (DomainMap -> s)
   -> String
   -> IO ()
 doHDL b src = do
   startTime <- Clock.getCurrentTime
-  pd      <- primDirs b
+  pd      <- primDirs (b emptyDomainMap)
   (bindingsMap,tcm,tupTcm,topEntities,primMap,reprs,domainConfs) <-
-    generateBindings (return ()) Auto pd ["."] [] (hdlKind b) src Nothing
+    generateBindings (return ()) Auto pd ["."] [] (hdlKind (b emptyDomainMap)) src Nothing
   prepTime <- startTime `deepseq` bindingsMap `deepseq` tcm `deepseq` reprs `deepseq` Clock.getCurrentTime
   let prepStartDiff = reportTimeDiff prepTime startTime
   putStrLn $ "Loading dependencies took " ++ prepStartDiff
 
-  generateHDL (buildCustomReprs reprs) domainConfs bindingsMap (Just b) primMap tcm tupTcm
+  generateHDL (buildCustomReprs reprs) domainConfs bindingsMap (Just (b domainConfs)) primMap tcm tupTcm
     (ghcTypeToHWType WORD_SIZE_IN_BITS True) ghcEvaluator evaluator topEntities Nothing
     defClashOpts{opt_cachehdl = False, opt_debug = debugSilent, opt_clear = True}
     (startTime,prepTime)

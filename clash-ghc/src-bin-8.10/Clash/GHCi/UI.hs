@@ -146,7 +146,7 @@ import Clash.GHCi.Leak
 
 -- clash additions
 import qualified Clash.Backend
-import           Clash.Backend (AggressiveXOptBB, RenderEnums)
+import           Clash.Backend (AggressiveXOptBB, DomainMap, RenderEnums, emptyDomainMap)
 import           Clash.Backend.SystemVerilog (SystemVerilogState)
 import           Clash.Backend.VHDL (VHDLState)
 import           Clash.Backend.Verilog (VerilogState)
@@ -2143,7 +2143,7 @@ exceptT :: Applicative m => Either e a -> ExceptT e m a
 exceptT = ExceptT . pure
 
 makeHDL' :: Clash.Backend.Backend backend
-         => (Int -> HdlSyn -> Bool -> PreserveCase -> Maybe (Maybe Int) -> AggressiveXOptBB -> RenderEnums -> backend)
+         => (Int -> HdlSyn -> Bool -> PreserveCase -> Maybe (Maybe Int) -> AggressiveXOptBB -> RenderEnums -> DomainMap -> backend)
          -> IORef ClashOpts
          -> [FilePath]
          -> InputT GHCi ()
@@ -2184,7 +2184,7 @@ makeHDL' backend opts lst = go =<< case lst of
 
 makeHDL :: GHC.GhcMonad m
         => Clash.Backend.Backend backend
-        => (Int -> HdlSyn -> Bool -> PreserveCase -> Maybe (Maybe Int) -> AggressiveXOptBB -> RenderEnums -> backend)
+        => (Int -> HdlSyn -> Bool -> PreserveCase -> Maybe (Maybe Int) -> AggressiveXOptBB -> RenderEnums -> DomainMap -> backend)
         -> GHC.Ghc ()
         -> IORef ClashOpts
         -> [FilePath]
@@ -2203,7 +2203,7 @@ makeHDL backend startAction optsRef srcs = do
                   frcUdf = opt_forceUndefined opts1
                   xOptBB = opt_aggressiveXOptBB opts1
                   enums  = opt_renderEnums opts1
-                  hdl    = Clash.Backend.hdlKind backend'
+                  hdl    = Clash.Backend.hdlKind backendE
                   -- determine whether `-outputdir` was used
                   outputDir = do odir <- objectDir dflags
                                  hidir <- hiDir dflags
@@ -2216,11 +2216,12 @@ makeHDL backend startAction optsRef srcs = do
                   opts2 = opts1 { opt_hdlDir = maybe outputDir Just (opt_hdlDir opts1)
                                 , opt_importPaths = idirs}
                   backend' = backend iw syn esc lw frcUdf (coerce xOptBB) (coerce enums)
+                  backendE = backend' emptyDomainMap
 
               checkMonoLocalBinds dflags
               checkImportDirs opts0 idirs
 
-              primDirs <- Clash.Backend.primDirs backend'
+              primDirs <- Clash.Backend.primDirs backendE
 
               forM_ srcs $ \src -> do
                 -- Generate bindings:
@@ -2239,7 +2240,7 @@ makeHDL backend startAction optsRef srcs = do
                   (buildCustomReprs reprs)
                   domainConfs
                   bindingsMap
-                  (Just backend')
+                  (Just (backend' domainConfs))
                   primMap
                   tcm
                   tupTcm

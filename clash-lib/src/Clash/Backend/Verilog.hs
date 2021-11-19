@@ -95,6 +95,7 @@ data VerilogState =
     , _hdlsyn    :: HdlSyn
     , _undefValue :: Maybe (Maybe Int)
     , _aggressiveXOptBB_ :: AggressiveXOptBB
+    , _domainConfigurations_ :: DomainMap
     }
 
 makeLenses ''VerilogState
@@ -103,7 +104,7 @@ instance HasIdentifierSet VerilogState where
   identifierSet = idSeen
 
 instance Backend VerilogState where
-  initBackend iw hdlsyn_ esc lw undefVal xOpt _enums = VerilogState
+  initBackend iw hdlsyn_ esc lw undefVal xOpt _enums confs = VerilogState
     { _genDepth=0
     , _idSeen=Id.emptyIdentifierSet esc lw Verilog
     , _srcSpan=noSrcSpan
@@ -117,6 +118,7 @@ instance Backend VerilogState where
     , _hdlsyn=hdlsyn_
     , _undefValue=undefVal
     , _aggressiveXOptBB_=xOpt
+    , _domainConfigurations_=confs
     }
   hdlKind         = const Verilog
   primDirs        = const $ do root <- primsRoot
@@ -180,6 +182,7 @@ instance Backend VerilogState where
   ifThenElseExpr _ = True
   aggressiveXOptBB = use aggressiveXOptBB_
   renderEnums = pure (RenderEnums False)
+  domainConfigurations = use domainConfigurations_
 
 type VerilogM a = Ap (State VerilogState) a
 

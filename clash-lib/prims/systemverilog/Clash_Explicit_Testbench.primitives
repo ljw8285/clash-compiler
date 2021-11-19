@@ -74,7 +74,7 @@ assign ~RESULT = ~ARG[7];
 localparam ~GENSYM[half_period][0] = (~PERIOD[0]0 / 2);
 always begin
   ~RESULT = ~IF~ACTIVEEDGE[Rising][0]~THEN 0 ~ELSE 1 ~FI;
-  #30000 forever begin
+  #~LONGESTPERIOD0 forever begin
     if (~ ~ARG[1]) begin
       $finish;
     end
