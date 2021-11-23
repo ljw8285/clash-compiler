@@ -148,6 +148,7 @@ runClashTest = defaultMain $ clashTestRoot
                           , hdlTargets = [Verilog]
                           , hdlSim = True
                           , vvpStdoutNonEmptyFail = False
+                          , verilate = SimOnly
                           }
            in runTest "I2Ctest" _opts
         ]
@@ -594,7 +595,7 @@ runClashTest = defaultMain $ clashTestRoot
             { clashFlags=["-fconstraint-solver-iterations=15"]
             , ghcFlags=["-itests/shouldwork/Numbers"]
             }
-        , runTest "NumConstantFoldingTB_2" def{clashFlags=["-itests/shouldwork/Numbers"]}
+        , runTest "NumConstantFoldingTB_2" def{clashFlags=["-itests/shouldwork/Numbers"], verilate=SimOnly}
         , outputTest "NumConstantFolding_2" def
             { clashFlags=["-fconstraint-solver-iterations=15"]
             , ghcFlags=["-itests/shouldwork/Numbers"]
@@ -659,8 +660,8 @@ runClashTest = defaultMain $ clashTestRoot
         , runTest "BlockRamTest" def{hdlSim=False}
         , runTest "Compression" def
         , runTest "DelayedReset" def
-        , runTest "DualBlockRam0" def
-        , runTest "DualBlockRam1" def
+        , runTest "DualBlockRam0" def{verilate=SimOnly}
+        , runTest "DualBlockRam1" def{verilate=SimOnly}
         , let _opts = def { buildTargets=BuildSpecific ["example"]
                           , hdlSim=False
                           }
@@ -690,6 +691,7 @@ runClashTest = defaultMain $ clashTestRoot
         [ let _opts = def { hdlTargets=[Verilog]
                           , vvpStdoutNonEmptyFail=False
                           , buildTargets=BuildSpecific ["topEntity"]
+                          , verilate=SimOnly
                           }
            in runTest "Test00" _opts
         ]
@@ -781,7 +783,7 @@ runClashTest = defaultMain $ clashTestRoot
         , runTest "IndexInt2" def
         , outputTest "IndexInt2" def{hdlTargets=[Verilog]}
         , runTest "Concat" def
-        , runTest "DFold" def
+        , runTest "DFold" def{verilate=SimOnly}
         , runTest "DFold2" def
         , runTest "DTFold" def
         , runTest "FindIndex" def
