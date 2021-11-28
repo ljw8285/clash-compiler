@@ -29,7 +29,6 @@ instance Binary PkgName
 
 instance Hashable TopEntityT
 instance Hashable TopEntity
-instance Hashable PortName
 
 instance Hashable ModName
 instance Hashable Name

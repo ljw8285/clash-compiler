@@ -7,7 +7,9 @@
 -}
 
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
@@ -47,11 +49,18 @@ import qualified Data.Time.Format     as Clock
 import Data.Typeable                  (Typeable)
 import Data.Version                   (Version)
 import GHC.Base                       (Int(..),isTrue#,(==#),(+#))
+import GHC.Generics                   (Generic)
 import GHC.Integer.Logarithms         (integerLogBase#)
 import qualified GHC.LanguageExtensions.Type as LangExt
 import GHC.Stack                      (HasCallStack, callStack, prettyCallStack)
 import Type.Reflection                (tyConPackage, typeRepTyCon, typeOf)
 import qualified Language.Haskell.TH  as TH
+
+#if MIN_VERSION_ghc(9,0,0)
+import qualified GHC.Utils.Misc as GhcUtil
+#else
+import qualified Util as GhcUtil
+#endif
 
 #if MIN_VERSION_ghc(9,0,0)
 import GHC.Types.SrcLoc               (SrcSpan, noSrcSpan)
@@ -65,6 +74,16 @@ import Clash.Unique
 #ifdef CABAL
 import qualified Paths_clash_lib      (version)
 #endif
+
+-- | Like 'GhcUtil.OverridingBool', but with instances for 'Eq' and 'Hashable'.
+data COverridingBool = Auto | Always | Never
+  deriving (Show, Generic, Eq, Hashable)
+
+fromOverridingBool :: GhcUtil.OverridingBool -> COverridingBool
+fromOverridingBool = \case
+  GhcUtil.Auto -> Auto
+  GhcUtil.Always -> Always
+  GhcUtil.Never -> Never
 
 data ClashException = ClashException SrcSpan String (Maybe String)
 

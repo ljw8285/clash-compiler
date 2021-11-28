@@ -62,13 +62,8 @@ import qualified Clash.Netlist.Id as Id
 import           Clash.Netlist.Util (typeSize)
 import           Clash.Primitives.Util (hashCompiledPrimMap)
 import           Clash.Signal (VDomainConfiguration(..))
+import           Clash.Util (COverridingBool(..))
 import           Clash.Util.Graph (callGraphBindings)
-
-#if MIN_VERSION_ghc(9,0,0)
-import GHC.Utils.Misc (OverridingBool(..))
-#else
-import Util (OverridingBool(..))
-#endif
 
 data PortDirection
   = In | Out | InOut

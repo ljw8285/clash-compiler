@@ -157,7 +157,7 @@ import           Clash.GHC.NetlistTypes
 import           Clash.GHCi.Common
 import           Clash.Netlist.BlackBox.Types (HdlSyn)
 import           Clash.Netlist.Types (PreserveCase)
-import           Clash.Util (clashLibVersion, reportTimeDiff)
+import           Clash.Util (clashLibVersion, reportTimeDiff, fromOverridingBool)
 import qualified Data.Time.Clock as Clock
 import qualified Paths_clash_ghc
 
@@ -2115,11 +2115,11 @@ makeHDL backend startAction optsRef srcs = do
   dflags <- GHC.getSessionDynFlags
   liftIO $ do startTime <- Clock.getCurrentTime
               opts0  <- readIORef optsRef
-              let opts1  = opts0 { opt_color = useColor dflags }
-              let iw     = opt_intWidth opts1
+              let color  = useColor dflags
+                  opts1  = opts0 { opt_color = fromOverridingBool color }
+                  iw     = opt_intWidth opts1
                   fp     = opt_floatSupport opts1
                   syn    = opt_hdlSyn opts1
-                  color  = opt_color opts1
                   esc    = opt_escapedIds opts1
                   lw     = opt_lowerCaseBasicIds opts1
                   frcUdf = opt_forceUndefined opts1

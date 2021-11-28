@@ -224,6 +224,7 @@ g = ...
 -}
 
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE TemplateHaskellQuotes #-}
 
 {-# LANGUAGE Safe #-}
@@ -246,6 +247,7 @@ import           Language.Haskell.TH.Syntax (Lift(..))
 import           Language.Haskell.TH.Compat
 #endif
 import           Data.Data
+import           Data.Hashable (Hashable)
 
 -- | TopEntity annotation
 data TopEntity
@@ -382,7 +384,7 @@ data PortName
   -- 2. The prefix for any unnamed ports below the 'PortProduct'
   --
   -- You can use an empty String ,@""@ , in case you want an auto-generated name.
-  deriving (Eq,Data,Show,Generic,Lift)
+  deriving (Eq,Hashable,Data,Show,Generic,Lift)
 
 -- | Default 'Synthesize' annotation which has no specified names for the input
 -- and output ports.

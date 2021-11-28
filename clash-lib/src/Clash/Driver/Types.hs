@@ -40,11 +40,9 @@ import           GHC.Generics                   (Generic)
 #if MIN_VERSION_ghc(9,0,0)
 import           GHC.Types.Basic                (InlineSpec)
 import           GHC.Types.SrcLoc               (SrcSpan)
-import           GHC.Utils.Misc                 (OverridingBool(..))
 #else
 import           BasicTypes                     (InlineSpec)
 import           SrcLoc                         (SrcSpan)
-import           Util                           (OverridingBool(..))
 #endif
 
 import           Clash.Signal.Internal
@@ -52,6 +50,7 @@ import           Clash.Signal.Internal
 import           Clash.Core.Term                (Term)
 import           Clash.Core.Var                 (Id)
 import           Clash.Core.VarEnv              (VarEnv)
+import           Clash.Util                     (COverridingBool(..))
 import           Clash.Netlist.BlackBox.Types   (HdlSyn (..))
 import {-# SOURCE #-} Clash.Netlist.Types       (PreserveCase(..))
 
@@ -150,7 +149,7 @@ data DebugOpts = DebugOpts
   -- for use with @clash-term@.
   --
   -- Command line flag: -fclash-debug-history[=FILE]
-  } deriving (Show)
+  } deriving (Eq, Show)
 
 instance Hashable DebugOpts where
   hashWithSalt s DebugOpts{..} =
@@ -302,7 +301,7 @@ data ClashOpts = ClashOpts
   -- ^ Disable warnings for primitives
   --
   -- Command line flag: -fclash-no-prim-warn
-  , opt_color :: OverridingBool
+  , opt_color :: COverridingBool
   -- ^ Show colors in debug output
   --
   -- Command line flag: -fclash-no-prim-warn
@@ -362,44 +361,8 @@ data ClashOpts = ClashOpts
   , opt_renderEnums :: Bool
   -- ^ Render sum types with all zero-width fields as enums where supported, as
   -- opposed to rendering them as bitvectors.
-  }
+  } deriving (Show, Generic, Eq, Hashable)
 
-instance Hashable ClashOpts where
-  hashWithSalt s ClashOpts {..} =
-    s `hashWithSalt`
-    opt_inlineLimit `hashWithSalt`
-    opt_specLimit `hashWithSalt`
-    opt_inlineFunctionLimit `hashWithSalt`
-    opt_inlineConstantLimit `hashWithSalt`
-    opt_evaluatorFuelLimit `hashWithSalt`
-    opt_cachehdl `hashWithSalt`
-    opt_clear `hashWithSalt`
-    opt_primWarn `hashOverridingBool`
-    opt_color `hashWithSalt`
-    opt_intWidth `hashWithSalt`
-    opt_hdlDir `hashWithSalt`
-    opt_hdlSyn `hashWithSalt`
-    opt_errorExtra `hashWithSalt`
-    opt_floatSupport `hashWithSalt`
-    opt_importPaths `hashWithSalt`
-    opt_componentPrefix `hashWithSalt`
-    opt_newInlineStrat `hashWithSalt`
-    opt_escapedIds `hashWithSalt`
-    opt_lowerCaseBasicIds `hashWithSalt`
-    opt_ultra `hashWithSalt`
-    opt_forceUndefined `hashWithSalt`
-    opt_checkIDir `hashWithSalt`
-    opt_aggressiveXOpt `hashWithSalt`
-    opt_aggressiveXOptBB `hashWithSalt`
-    opt_inlineWFCacheLimit `hashWithSalt`
-    opt_edalize `hashWithSalt`
-    opt_renderEnums
-   where
-    hashOverridingBool :: Int -> OverridingBool -> Int
-    hashOverridingBool s1 Auto = hashWithSalt s1 (0 :: Int)
-    hashOverridingBool s1 Always = hashWithSalt s1 (1 :: Int)
-    hashOverridingBool s1 Never = hashWithSalt s1 (2 :: Int)
-    infixl 0 `hashOverridingBool`
 
 defClashOpts :: ClashOpts
 defClashOpts

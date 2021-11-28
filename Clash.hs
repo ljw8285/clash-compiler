@@ -20,7 +20,7 @@ import Clash.Backend.Verilog
 import Clash.Netlist.BlackBox.Types
 import Clash.Netlist.Types (PreserveCase(..))
 import Clash.Annotations.BitRepresentation.Internal (buildCustomReprs)
-import Clash.Util
+import Clash.Util hiding (COverridingBool(..))
 
 import Control.DeepSeq
 import qualified Data.Time.Clock as Clock

@@ -4,6 +4,7 @@ module Clash.Core.Subst where
 
 import GHC.Stack (HasCallStack)
 import {-# SOURCE #-} Clash.Core.Type (Type)
+import {-# SOURCE #-} Clash.Core.Term (Term)
 import Clash.Core.Var (TyVar)
 
 substTyWith
@@ -19,3 +20,4 @@ aeqType
   -> Bool
 
 instance Eq Type
+instance Eq Term

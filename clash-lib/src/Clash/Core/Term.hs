@@ -149,7 +149,7 @@ data NameMod
 data IsMultiPrim
   = SingleResult
   | MultiResult
-  deriving (Show, Generic, NFData, Hashable, Binary)
+  deriving (Show, Generic, NFData, Eq, Hashable, Binary)
 
 data PrimInfo = PrimInfo
   { primName :: !Text
@@ -168,7 +168,7 @@ data PrimInfo = PrimInfo
 data PrimUnfolding
   = NoUnfolding
   | Unfolding !Id
-  deriving (Show,Generic,NFData,Hashable,Binary)
+  deriving (Show,Generic,NFData,Eq,Hashable,Binary)
 
 data MultiPrimInfo = MultiPrimInfo
   { mpi_primInfo :: PrimInfo
