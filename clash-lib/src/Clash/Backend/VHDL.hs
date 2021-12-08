@@ -565,12 +565,17 @@ tyDec hwty = do
                  <+> parens (hsep (punctuate comma variantNames))
                  <> semi
 
+    MemBlob _ m ->
+      "type" <+> tyName hwty
+             <+> "is array (integer range <>) of std_logic_vector"
+             <> parens (int (m - 1) <+> "downto 0")
+             <> semi
+
     -- Type aliases:
     Clock _           -> typAliasDec hwty
     Reset _           -> typAliasDec hwty
     Enable _          -> typAliasDec hwty
     Index _           -> typAliasDec hwty
-    MemBlob _ _       -> typAliasDec hwty
     CustomSP _ _ _ _  -> typAliasDec hwty
     Sum _ _           -> typAliasDec hwty
     SP _ _            -> typAliasDec hwty
@@ -1046,6 +1051,7 @@ appendSize baseType sizedType = case sizedType of
   Unsigned n  -> baseType <> parens (int (n-1) <+> "downto 0")
   Vector n _  -> baseType <> parens ("0 to" <+> int (n-1))
   RTree d _   -> baseType <> parens ("0 to" <+> int ((2^d)-1))
+  MemBlob n _ -> baseType <> parens ("0 to" <+> int (n-1))
   Annotated _ elTy -> appendSize baseType elTy
   _           -> baseType
 
