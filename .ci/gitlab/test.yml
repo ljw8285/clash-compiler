@@ -83,14 +83,14 @@ prelude:doctests:
 suite:vhdl:
   extends: .test-common-local
   script:
-    - cabal v2-run -- clash-testsuite -j$THREADS -p .VHDL --hide-successes
+    - cabal v2-run -- clash-testsuite -j$THREADS -p .VHDL --hide-successes --ghdl
 
 suite:verilog:
   extends: .test-common-local
   script:
-    - cabal v2-run -- clash-testsuite -j$THREADS -p .Verilog --hide-successes
+    - cabal v2-run -- clash-testsuite -j$THREADS -p .Verilog --hide-successes --iverilog --verilator
 
 suite:systemverilog:
   extends: .test-common-local
   script:
-    - cabal v2-run -- clash-testsuite -j$THREADS -p .SystemVerilog --hide-successes
+    - cabal v2-run -- clash-testsuite -j$THREADS -p .SystemVerilog --hide-successes --verilator
