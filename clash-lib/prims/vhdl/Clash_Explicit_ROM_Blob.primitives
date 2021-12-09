@@ -2,14 +2,14 @@
     { "name" : "Clash.Explicit.ROM.Blob.romBlob#"
     , "kind" : "Declaration"
     , "type" :
-"rom# :: ( KnownDomain dom        ARG[0]
-         , KnownNat n    --       ARG[1]
-         , KnownNat n    --       ARG[2]
-         , HasCallStack) --       ARG[3]
-      => Clock dom       -- clk,  ARG[4]
-      -> Enable dom      -- en,   ARG[5]
-      -> MemBlob n m     -- init, ARG[6]
-      -> Signal dom Int  -- rd,   ARG[7]
+"rom# :: ( KnownDomain dom           ARG[0]
+         , KnownNat n    --          ARG[1]
+         , KnownNat m    --          ARG[2]
+         , HasCallStack) --          ARG[3]
+      => Clock dom       -- clk,     ARG[4]
+      -> Enable dom      -- en,      ARG[5]
+      -> MemBlob n m     -- content, ARG[6]
+      -> Signal dom Int  -- rd,      ARG[7]
       -> Signal dom a"
     , "template" :
 "-- rom begin
@@ -33,12 +33,5 @@ begin
   end process;
 end block;
 -- rom end"
-    , "includes" : [ { "extension": "txt"
-                     , "name": "romblob"
-                     , "format": "Haskell"
-                     , "templateFunction": "Clash.Primitives.ROM.romBlobTF"
-                     }
-                   ]
-    }
   }
 ]
