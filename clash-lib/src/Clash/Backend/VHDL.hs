@@ -1144,8 +1144,7 @@ tyName' rec0 (filterTransparent -> t) = do
     MemBlob n m -> do
       let nm = TextS.concat [ "memblob_of_"
                             , if rec0 then showt n `TextS.append` "_" else ""
-                            , "std_logic_vector"
-                            , "_"
+                            , "std_logic_vector_"
                             , showt m]
       Ap $ makeCached (t, rec0) nameCache (return nm)
     RTree n elTy  -> do
@@ -1212,12 +1211,6 @@ normaliseType enums@(RenderEnums e) hwty = case hwty of
   Reset _           -> Bit
   Enable _          -> Bool
   Index _           -> Unsigned (typeSize hwty)
-  -- FIXME: subtype looks like array_of_std_logic_vector_m(0 to n-1)
-  --        should be array_of_std_logic_vector_m
-  --        and then ~TYP[x] should have the (0 to n-1)
-  --        OR subtype needs to have length info in its name
-  -- FIXME: type def of array_of_std_logic_vector_m is missing. Because of
-  --        MemBlob being a "simple type" when it is not?
   MemBlob n m       -> Vector n (BitVector m)
   CustomSP _ _ _ _  -> BitVector (typeSize hwty)
   SP _ _            -> BitVector (typeSize hwty)
