@@ -154,6 +154,7 @@ instance Backend VHDLState where
     Vector {} -> pure UserType
     RTree {} -> pure UserType
     Product {} -> pure UserType
+    MemBlob {} -> pure UserType
 
     Sum {} -> do
       -- If an enum is rendered, it is a user type. If not, an std_logic_vector
@@ -165,7 +166,6 @@ instance Backend VHDLState where
     Reset {} -> pure SynonymType
     Enable {} -> pure SynonymType
     Index {} -> pure SynonymType
-    MemBlob {} -> pure SynonymType
     CustomSP {} -> pure SynonymType
     SP {} -> pure SynonymType
     -- TODO This could possibly be changed to a VHDL enum as well, provided the
@@ -788,6 +788,42 @@ funDec _ syn t@(Vector _ elTy) = Just
     eSz     = int (typeSize elTy)
     getElem = "islv" <> parens ("i * " <> eSz <+> "to (i+1) * " <> eSz <+> "- 1")
 
+funDec _ _ t@(MemBlob n m) = Just
+  ( "function" <+> "toSLV" <+> parens ("value : " <+> qualTyName t) <+> "return std_logic_vector" <> semi <> line <>
+    "function" <+> "fromSLV" <+> parens ("slv" <+> colon <+> "in" <+> "std_logic_vector") <+> "return" <+> qualTyName t <> semi
+  , "function" <+> "toSLV" <+> parens ("value : " <+> qualTyName t) <+> "return std_logic_vector" <+> "is" <> line <>
+      indent 2
+        ( "alias ivalue    :" <+> qualTyName t <> "(1 to value'length) is value;" <> line <>
+          "variable result :" <+> "std_logic_vector" <> parens ("1 to value'length * " <> int m ) <> semi
+        ) <> line <>
+    "begin" <> line <>
+      indent 2
+        ("for i in ivalue'range loop" <> line <>
+            indent 2
+              (  "result" <> parens (parens ("(i - 1) * " <> int m) <+> "+ 1" <+>
+                                             "to i*" <> int m) <+>
+                          ":=" <+> ("ivalue" <> parens ("i")) <> semi
+              ) <> line <>
+         "end" <+> "loop" <> semi <> line <>
+         "return" <+> "result" <> semi
+        ) <> line <>
+    "end" <> semi <> line <>
+    "function" <+> "fromSLV" <+> parens ("slv" <+> colon <+> "in" <+> "std_logic_vector") <+> "return" <+> qualTyName t <+> "is" <> line <>
+      indent 2
+        ( "alias islv      :" <+> "std_logic_vector" <> "(0 to slv'length - 1) is slv;" <> line <>
+          "variable result :" <+> qualTyName t <> parens ("0 to slv'length / " <> int m <+> "- 1") <> semi
+        ) <> line <>
+    "begin" <> line <>
+      indent 2
+        ("for i in result'range loop" <> line <>
+            indent 2
+              ( "result" <> parens "i" <+> ":=" <+> "islv" <> parens ("i * " <> int m <+> "to (i+1) * " <> int m <+> "- 1") <> semi) <> line <>
+         "end" <+> "loop" <> semi <> line <>
+         "return" <+> "result" <> semi
+        ) <> line <>
+    "end" <> semi
+  )
+
 funDec _ _ (BitVector _) = Just
   ( "function" <+> "toSLV" <+> parens ("slv" <+> colon <+> "in" <+> "std_logic_vector") <+> "return" <+> "std_logic_vector" <> semi <> line <>
     "function" <+> "fromSLV" <+> parens ("slv" <+> colon <+> "in" <+> "std_logic_vector") <+> "return" <+> "std_logic_vector" <> semi
@@ -1205,13 +1241,13 @@ normaliseType enums@(RenderEnums e) hwty = case hwty of
   RTree _ _     -> hwty
   Product _ _ _ -> hwty
   Sum _ _       -> if e then hwty else BitVector (typeSize hwty)
+  MemBlob n m   -> hwty
 
   -- Simple types, for which a subtype (without qualifiers) will be made in VHDL:
   Clock _           -> Bit
   Reset _           -> Bit
   Enable _          -> Bool
   Index _           -> Unsigned (typeSize hwty)
-  MemBlob n m       -> Vector n (BitVector m)
   CustomSP _ _ _ _  -> BitVector (typeSize hwty)
   SP _ _            -> BitVector (typeSize hwty)
   CustomSum _ _ _ _ -> BitVector (typeSize hwty)
